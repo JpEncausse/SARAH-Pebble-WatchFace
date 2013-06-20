@@ -11,7 +11,7 @@
 #define SARAH_KEY_CURRENT 1
 	
 #define MY_UUID { 0x30, 0xB2, 0x7D, 0x97, 0x22, 0x46, 0x42, 0xB4, 0x98, 0x23, 0x9C, 0x68, 0xD1, 0xF3, 0xB7, 0x95 }
-PBL_APP_INFO_SIMPLE(MY_UUID, "S.A.R.A.H.", "Encausse.net", 1 /* App version */);
+PBL_APP_INFO_SIMPLE(HTTP_UUID, "S.A.R.A.H.", "Encausse.net", 1 /* App version */);
 
 Window window;
 
@@ -173,10 +173,10 @@ void pbl_main(void *params) {
 
 // Send a request to SARAH
 void request_sarah() {
-  // if(!located) {
-  //  http_location_request();
-  //  return;
-  //}
+  if(!located) {
+    http_location_request();
+    return;
+  }
 	
   // Build the HTTP request
   DictionaryIterator *body;
@@ -186,8 +186,8 @@ void request_sarah() {
 	text_layer_set_text(&textLayer, "Failed 1 !");
 	return;
   }
-  //dict_write_int32(body, SARAH_KEY_LATITUDE, our_latitude);
-  //dict_write_int32(body, SARAH_KEY_LONGITUDE, our_longitude);
+  dict_write_int32(body, SARAH_KEY_LATITUDE, our_latitude);
+  dict_write_int32(body, SARAH_KEY_LONGITUDE, our_longitude);
 
   // Send it.
   if(http_out_send() != HTTP_OK) {
