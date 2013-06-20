@@ -30,7 +30,7 @@ void request_sarah();
 void failed(int32_t cookie, int http_status, void* context) {
   if(cookie == 0 || cookie == SARAH_HTTP_COOKIE) {
 	// sarah_layer_set_icon(&sarah_layer, SARAH_ICON_NO_DATA);
-	text_layer_set_text(&textLayer, "Failed : "+http_status);
+	text_layer_set_text(&textLayer, "Failed");
   }
 }
 
@@ -64,10 +64,6 @@ void success(int32_t cookie, int http_status, DictionaryIterator* received, void
 		sarah_layer_clear_precipitation_forecast(&sarah_layer);
 	}*/
 	text_layer_set_text(&textLayer, "Success !");
-}
-
-void reconnect(void* context) {
-  // request_sarah();
 }
 
 void location(float latitude, float longitude, float altitude, float accuracy, void* context) {
@@ -155,7 +151,6 @@ void handle_init(AppContextRef ctx) {
   http_register_callbacks((HTTPCallbacks){
 	.failure=failed,
 	.success=success,
-	.reconnect=reconnect,
 	.location=location
 	}, (void*)ctx);
 	
