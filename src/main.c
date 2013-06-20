@@ -8,7 +8,8 @@
 #define SARAH_HTTP_COOKIE 1
 #define SARAH_KEY_LATITUDE 1
 #define SARAH_KEY_LONGITUDE 2
-#define SARAH_KEY_CURRENT 1
+#define SARAH_KEY_BTN 3
+// #define SARAH_KEY_CURRENT 1
 	
 #define MY_UUID { 0x30, 0xB2, 0x7D, 0x97, 0x22, 0x46, 0x42, 0xB4, 0x98, 0x23, 0x9C, 0x68, 0xD1, 0xF3, 0xB7, 0x95 }
 PBL_APP_INFO_SIMPLE(HTTP_UUID, "S.A.R.A.H.", "Encausse.net", 1 /* App version */);
@@ -22,7 +23,7 @@ TextLayer textLayer;
 // ==========================================
 
 
-static int our_latitude, our_longitude;
+static int our_latitude, our_longitude, our_btn;
 static bool located;
 
 void request_sarah();
@@ -35,7 +36,7 @@ void failed(int32_t cookie, int http_status, void* context) {
 }
 
 void success(int32_t cookie, int http_status, DictionaryIterator* received, void* context) {
-	//if(cookie != SARAH_HTTP_COOKIE) return;
+	if(cookie != SARAH_HTTP_COOKIE) return;
 	//Tuple* data_tuple = dict_find(received, SARAH_KEY_CURRENT);
 	/*
 	if(data_tuple) {
@@ -88,14 +89,20 @@ void location(float latitude, float longitude, float altitude, float accuracy, v
 void up_single_click_handler(ClickRecognizerRef recognizer, Window *window) {
   (void)recognizer;
   (void)window;
-
+	
+  text_layer_set_text(&textLayer, "Requesting: 1");
+  our_btn = 1;
+  request_sarah();
 }
 
 
 void down_single_click_handler(ClickRecognizerRef recognizer, Window *window) {
   (void)recognizer;
   (void)window;
-
+	
+  text_layer_set_text(&textLayer, "Requesting: 3");
+  our_btn = 3;
+  request_sarah();
 }
 
 
@@ -103,7 +110,8 @@ void select_single_click_handler(ClickRecognizerRef recognizer, Window *window) 
   (void)recognizer;
   (void)window;
   
-  text_layer_set_text(&textLayer, "Requesting !");
+  text_layer_set_text(&textLayer, "Requesting: 2");
+  our_btn = 2;
   request_sarah();
 }
 
@@ -111,6 +119,10 @@ void select_single_click_handler(ClickRecognizerRef recognizer, Window *window) 
 void select_long_click_handler(ClickRecognizerRef recognizer, Window *window) {
   (void)recognizer;
   (void)window;
+	
+  text_layer_set_text(&textLayer, "Requesting: 4");
+  our_btn = 4;
+  request_sarah();
 }
 
 
@@ -120,7 +132,6 @@ void click_config_provider(ClickConfig **config, Window *window) {
   (void)window;
 
   config[BUTTON_ID_SELECT]->click.handler = (ClickHandler) select_single_click_handler;
-
   config[BUTTON_ID_SELECT]->long_click.handler = (ClickHandler) select_long_click_handler;
 
   config[BUTTON_ID_UP]->click.handler = (ClickHandler) up_single_click_handler;
@@ -188,6 +199,7 @@ void request_sarah() {
   }
   dict_write_int32(body, SARAH_KEY_LATITUDE, our_latitude);
   dict_write_int32(body, SARAH_KEY_LONGITUDE, our_longitude);
+  dict_write_int32(body, SARAH_KEY_BTN, our_btn);
 
   // Send it.
   if(http_out_send() != HTTP_OK) {
