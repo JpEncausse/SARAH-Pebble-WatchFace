@@ -88,7 +88,8 @@ void showDetail(char* msg){
 
   // The back button will dismiss the current window, not close the app.  
   // So just press back to go back to the master view.
-  if (our_btn == -1){ 
+  if (our_btn == -1){
+	our_btn = -2;
     window_stack_push(&detailW, true); 
   } else { 
 	layer_mark_dirty(&detailW_text.layer);
