@@ -6,16 +6,11 @@
 #include "itoa.h"
 
 #define SARAH_HTTP_COOKIE 1
-
-// POST variables
-#define SARAH_KEY_LATITUDE 1
-#define SARAH_KEY_LONGITUDE 2
-#define SARAH_KEY_CTX 3
-
+	
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))	
 #define MY_UUID { 0x30, 0xB2, 0x7D, 0x97, 0x22, 0x46, 0x42, 0xB4, 0x98, 0x23, 0x9C, 0x68, 0xD1, 0xF3, 0xB7, 0x95 }
 
-static int our_latitude, our_longitude, our_ctx;
+static int our_latitude, our_longitude, our_ctx, our_btn;
 static bool located;
 
 PBL_APP_INFO_SIMPLE(HTTP_UUID, "SARAH", "Encausse.net", 1 /* App version */);
@@ -23,45 +18,105 @@ PBL_APP_INFO_SIMPLE(HTTP_UUID, "SARAH", "Encausse.net", 1 /* App version */);
 Window window;
 void request_sarah();
 
+// ==========================================
+//  DETAIL WINDOW
+// ==========================================
+
+Window detailW;
+TextLayer detailW_text;
+
+void up_single_click_handler(ClickRecognizerRef recognizer, Window *window) {
+  (void)recognizer;
+  (void)window;
+  our_btn = 1;
+  request_sarah();
+}
+void select_single_click_handler(ClickRecognizerRef recognizer, Window *window) {
+  (void)recognizer;
+  (void)window;
+  our_btn = 2;
+  request_sarah();
+}
+void down_single_click_handler(ClickRecognizerRef recognizer, Window *window) {
+  (void)recognizer;
+  (void)window;
+  our_btn = 3;
+  request_sarah();
+}
+void select_long_click_handler(ClickRecognizerRef recognizer, Window *window) {
+  (void)recognizer;
+  (void)window;
+  our_btn = 4;
+  request_sarah();
+}
+
+void click_config_provider(ClickConfig **config, Window *window) {
+  (void)window;
+
+  config[BUTTON_ID_SELECT]->click.handler = (ClickHandler) select_single_click_handler;
+  config[BUTTON_ID_SELECT]->long_click.handler = (ClickHandler) select_long_click_handler;
+
+  config[BUTTON_ID_UP]->click.handler = (ClickHandler) up_single_click_handler;
+  config[BUTTON_ID_UP]->click.repeat_interval_ms = 100;
+
+  config[BUTTON_ID_DOWN]->click.handler = (ClickHandler) down_single_click_handler;
+  config[BUTTON_ID_DOWN]->click.repeat_interval_ms = 100;
+}
+
+char buffer[256];
+bool initW = false;
+void showDetail(char* msg){
+  if (!initW){
+	initW = true;
+    window_init(&detailW, "Menu Details");
+
+    text_layer_init(&detailW_text, GRect(0,0,144,180));
+    text_layer_set_text_alignment(&detailW_text, GTextAlignmentRight); // Center the text.
+    text_layer_set_font(&detailW_text, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
+
+    buffer[0] = 0; // Ensure the message starts with a null so strcat will overwrite it.
+
+    text_layer_set_text(&detailW_text, buffer);
+    layer_add_child(&detailW.layer, &detailW_text.layer);
+  
+    // Attach our desired button functionality
+    window_set_click_config_provider(&detailW, (ClickConfigProvider) click_config_provider);
+  }
+	
+  buffer[0] = 0; // Ensure the message starts with a null so strcat will overwrite it.
+  strcat(buffer, msg);
+
+  // The back button will dismiss the current window, not close the app.  
+  // So just press back to go back to the master view.
+  if (our_btn == -1){ 
+    window_stack_push(&detailW, true); 
+  } else { 
+	layer_mark_dirty(&detailW_text.layer);
+  }
+}
 
 // ==========================================
 //  MENULAYER
 // ==========================================
 
 MenuLayer mainMenu;
-Window detailW;
-TextLayer detailW_text;
 
-char buffer[20];
-char* status[] = { "SUCCESS ", "FAILED  ", "FAILED 1", "FAILED 2" };
-char* choices[] = {
-  " Menu 1",
-  " Menu 2",
-  " Menu 3",
-  " Menu 4"
+char* status[]  = { "SUCCESS ", "FAILED  ", "FAILED 1", "FAILED 2" };
+char* choices[] = { " Domotique", " Scraping", " Powerpoint", " Multimedia", " Blink", " Divers 1", " Divers 2"	};
+char* urls[] = {
+  "http://192.168.0.36:8080/sarah/pebble",
+  "http://192.168.0.36:8080/sarah/pebble",
+  "http://192.168.0.42:8080/sarah/pebble",
+  "http://192.168.0.8:8080/sarah/pebble",
+  "http://192.168.0.8:8080/sarah/pebble",
+  "http://192.168.0.8:8080/sarah/pebble",
+  "http://192.168.0.8:8080/sarah/pebble"
 };
-
-void showDetail(char* msg){
-  window_init(&detailW, "Menu Details");
-
-  text_layer_init(&detailW_text, GRect(0,52,144,40));
-  text_layer_set_text_alignment(&detailW_text, GTextAlignmentCenter); // Center the text.
-  text_layer_set_font(&detailW_text, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
-
-  buffer[0] = 0; // Ensure the message starts with a null so strcat will overwrite it.
-  strcat(buffer, msg);
-
-  text_layer_set_text(&detailW_text, buffer);
-  layer_add_child(&detailW.layer, &detailW_text.layer);
-
-  // The back button will dismiss the current window, not close the app.  
-  // So just press back to go back to the master view.
-  window_stack_push(&detailW, true); 
-}
 
 void mainMenu_select_click(struct MenuLayer *menu_layer, MenuIndex *cell_index, void *callback_context){
   // Show the detail view when select is pressed.
   our_ctx = cell_index->row;
+  our_btn = -1;
   request_sarah();
 }
 void mainMenu_draw_row(GContext *ctx, const Layer *cell_layer, MenuIndex *cell_index, void *callback_context){
@@ -71,30 +126,37 @@ void mainMenu_draw_row(GContext *ctx, const Layer *cell_layer, MenuIndex *cell_i
   // Just saying cell_layer->frame for the 4th argument doesn't work.  Probably because the GContext is relative to the cell already, 
   // but the cell_layer.frame is relative to the menulayer or the screen or something.
 }
-/*
-void mainMenu_draw_header(GContext *ctx, const Layer *cell_layer, uint16_t section_index, void *callback_context){
-  // Adding the header number as text on the header cell.
-  graphics_context_set_text_color(ctx, GColorBlack); // This is important.
-  graphics_text_draw(ctx, headers[section_index], fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD), GRect(0,0,cell_layer->frame.size.w,cell_layer->frame.size.h), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
-}*/
-int16_t mainMenu_get_header_height(struct MenuLayer *menu_layer, uint16_t section_index, void *callback_context){ 
-  return 0; // Always 30px tall for a header cell
+uint16_t mainMenu_get_num_rows_in_section(struct MenuLayer *menu_layer, uint16_t section_index, void *callback_context){
+  return ARRAY_SIZE(choices);
 }
 int16_t mainMenu_get_cell_height(struct MenuLayer *menu_layer, MenuIndex *cell_index, void *callback_context){
   return 32; // Always 20px tall for a normal cell
 }
-uint16_t mainMenu_get_num_rows_in_section(struct MenuLayer *menu_layer, uint16_t section_index, void *callback_context){
-  return ARRAY_SIZE(choices);
-}
+
 uint16_t mainMenu_get_num_sections(struct MenuLayer *menu_layer, void *callback_context) { 
   return 1; // ARRAY_SIZE(headers);
 }
+int16_t mainMenu_get_header_height(struct MenuLayer *menu_layer, uint16_t section_index, void *callback_context){ 
+  return 0; // Always 30px tall for a header cell
+}
+/*
+void mainMenu_draw_header(GContext *ctx, const Layer *cell_layer, uint16_t section_index, void *callback_context){
+  // Adding the header number as text on the header cell.
+  graphics_context_set_text_color(ctx, GColorBlack); // This is important.
+  graphics_text_draw(ctx, "HEADER", fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD), GRect(0,0,cell_layer->frame.size.w,cell_layer->frame.size.h), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+}*/
 
 MenuLayerCallbacks cbacks;
 
 // ==========================================
 //  HTTP REQUEST
 // ==========================================
+
+// POST variables
+#define SARAH_KEY_LATITUDE 1
+#define SARAH_KEY_LONGITUDE 2
+#define SARAH_KEY_CTX 3
+#define SARAH_KEY_BTN 4
 
 // Received variables
 #define SARAH_KEY_MENU 1
@@ -141,7 +203,7 @@ void request_sarah() {
 	
   // Build the HTTP request
   DictionaryIterator *body;
-  HTTPResult result = http_out_get("http://192.168.0.8:8080/sarah/pebble", SARAH_HTTP_COOKIE, &body);
+	HTTPResult result = http_out_get(urls[our_ctx], SARAH_HTTP_COOKIE, &body);
   if(result != HTTP_OK) {
 	// sarah_layer_set_icon(&sarah_layer, SARAH_ICON_NO_DATA);
 	showDetail(status[2]);
@@ -149,7 +211,8 @@ void request_sarah() {
   }
   dict_write_int32(body, SARAH_KEY_LATITUDE, our_latitude);
   dict_write_int32(body, SARAH_KEY_LONGITUDE, our_longitude);
-  dict_write_int32(body, SARAH_KEY_CTX, our_ctx);
+  dict_write_cstring(body, SARAH_KEY_CTX, choices[our_ctx]);
+  dict_write_int32(body, SARAH_KEY_BTN, our_btn);
 
   // Send it.
   if(http_out_send() != HTTP_OK) {
